@@ -137,3 +137,10 @@ Use commits pequenos e com mensagens claras, pois a própria aplicação lista o
 histórico sem precisar da apresentação presencial. O `.gitignore` já impede que
 `.env`, `uploads/` e `__pycache__/` vão para o repositório. **Nunca** faça commit da
 chave da API.
+
+## Modelo e erro 503 (sobrecarga)
+
+O modelo principal é `gemini-3.8-flash` (pode ser trocado pela variável `GEMINI_MODEL`).
+Se ele responder 503 (alta demanda), o código tenta de novo e depois passa
+automaticamente para `gemini-3.5-flash-lite`. Erros de chave ou cota não trocam de
+modelo. A lista de reserva fica em `MODELOS_RESERVA`, em `agents/agent1/manipulacao_dados.py`.

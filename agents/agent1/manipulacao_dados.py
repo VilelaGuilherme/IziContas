@@ -8,8 +8,12 @@ from google import genai
 from google.genai import types
 from pydantic import BaseModel, Field
 
-MAX_RETRIES = 3
-RETRY_DELAY_SECONDS = 8
+MAX_RETRIES = 2            # tentativas por modelo
+RETRY_DELAY_SECONDS = 5
+
+# Se o modelo principal estiver sobrecarregado (503), tenta o próximo da lista.
+MODELO_PRINCIPAL = os.environ.get("GEMINI_MODEL", "gemini-3.8-flash")
+MODELOS_RESERVA = ["gemini-3.5-flash-lite"]
 
 # Categorias de DESPESA (conforme o enunciado da atividade).
 # Com o tempo vão surgir mais: basta adicionar aqui que o prompt e o schema
@@ -124,7 +128,7 @@ Categorias:
 class Agent1:
     """Agent responsável por extrair e classificar dados de notas fiscais em PDF."""
 
-    def __init__(self, api_key: str = None, model_name: str = "gemini-3.8-flash"):
+    def __init__(self, api_key: str = None, model_name: str = MODELO_PRINCIPAL):
         api_key = api_key or os.environ.get("GEMINI_API_KEY")
         if not api_key:
             raise ValueError(
@@ -146,37 +150,42 @@ class Agent1:
 
         response = None
         last_exception = None
+        modelos = [self.model_name] + [m for m in MODELOS_RESERVA if m != self.model_name]
 
-        for tentativa in range(1, MAX_RETRIES + 1):
-            try:
-                response = self.client.models.generate_content(
-                    model=self.model_name,
-                    contents=[
-                        types.Part.from_bytes(data=pdf_bytes, mime_type="application/pdf"),
-                        PROMPT_EXTRACAO,
-                    ],
-                    config=types.GenerateContentConfig(
-                        response_mime_type="application/json",
-                        response_schema=NotaFiscal,  # Gemini gera o JSON já no schema
-                    ),
-                )
-                break
-            except Exception as exc:
-                last_exception = exc
-                is_overloaded = "UNAVAILABLE" in str(exc) or "503" in str(exc)
-                if is_overloaded and tentativa < MAX_RETRIES:
-                    print(
-                        f"Modelo sobrecarregado (tentativa {tentativa}/{MAX_RETRIES}). "
-                        f"Tentando novamente em {RETRY_DELAY_SECONDS}s..."
+        for modelo in modelos:
+            for tentativa in range(1, MAX_RETRIES + 1):
+                try:
+                    response = self.client.models.generate_content(
+                        model=modelo,
+                        contents=[
+                            types.Part.from_bytes(data=pdf_bytes, mime_type="application/pdf"),
+                            PROMPT_EXTRACAO,
+                        ],
+                        config=types.GenerateContentConfig(
+                            response_mime_type="application/json",
+                            response_schema=NotaFiscal,  # Gemini gera o JSON já no schema
+                        ),
                     )
-                    time.sleep(RETRY_DELAY_SECONDS)
-                    continue
-                raise
+                    self.modelo_usado = modelo
+                    break
+                except Exception as exc:
+                    last_exception = exc
+                    is_overloaded = "UNAVAILABLE" in str(exc) or "503" in str(exc)
+                    if not is_overloaded:
+                        raise  # erro de chave, cota etc.: trocar de modelo não resolve
+                    if tentativa < MAX_RETRIES:
+                        print(f"{modelo} sobrecarregado (tentativa {tentativa}/{MAX_RETRIES}). "
+                              f"Tentando novamente em {RETRY_DELAY_SECONDS}s...")
+                        time.sleep(RETRY_DELAY_SECONDS)
+                    else:
+                        print(f"{modelo} continua sobrecarregado. Tentando o próximo modelo...")
+            if response is not None:
+                break
 
         if response is None:
             raise ValueError(
-                f"Não foi possível obter resposta do Gemini após {MAX_RETRIES} "
-                f"tentativas. Erro original: {last_exception}"
+                f"Todos os modelos ({', '.join(modelos)}) estão sobrecarregados no momento. "
+                f"Tente de novo em alguns instantes. Erro original: {last_exception}"
             )
 
         if not response.text:

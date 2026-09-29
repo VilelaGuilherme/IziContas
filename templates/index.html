@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Extração de Dados de Nota Fiscal</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+            background: #f8fafc;
+            color: #0f172a;
+        }
+        main { max-width: 860px; margin: 0 auto; padding: 32px 16px 56px; }
+        header { text-align: center; margin-bottom: 24px; }
+        h1 { font-size: 2.2rem; margin: 0 0 8px; }
+        header p { margin: 0; color: #64748b; font-size: 1.05rem; }
+
+        .card {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 24px;
+            margin-top: 20px;
+        }
+        h2 {
+            display: flex; align-items: center; gap: 10px;
+            font-size: 1.1rem; font-weight: 500; margin: 0 0 20px;
+        }
+        svg { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor;
+              stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+        label { display: block; font-weight: 600; font-size: 0.95rem; margin-bottom: 8px; }
+        input[type=file] {
+            width: 100%; padding: 12px; border-radius: 10px; border: 0;
+            background: #f1f1f4; font-size: 0.95rem; cursor: pointer;
+        }
+        input[type=file]::file-selector-button {
+            border: 0; background: none; font-weight: 600; margin-right: 6px; cursor: pointer;
+        }
+
+        .chip {
+            display: flex; align-items: center; gap: 10px; margin-top: 16px;
+            background: #eff4ff; border-radius: 10px; padding: 12px 14px;
+            color: #1e3a8a; font-size: 0.95rem;
+        }
+        .chip span.nome { color: #0f172a; word-break: break-all; }
+        .badge {
+            background: #e2e8f0; color: #0f172a; border-radius: 999px;
+            padding: 2px 10px; font-size: 0.78rem; font-weight: 600; white-space: nowrap;
+        }
+
+        .btn-principal {
+            width: 100%; margin-top: 16px; padding: 14px; border: 0; border-radius: 10px;
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+            background: #020617; color: #fff; font-size: 0.95rem; font-weight: 600;
+            letter-spacing: 0.03em; cursor: pointer;
+        }
+        .btn-principal:disabled { background: #84838d; cursor: not-allowed; }
+        #status { min-height: 1.3em; margin-top: 12px; font-size: 0.95rem; color: #475569; }
+        #status.erro { color: #b91c1c; }
+
+        .tabs {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
+            background: #ececf1; border-radius: 999px; padding: 4px; margin-bottom: 22px;
+        }
+        .tab {
+            border: 0; background: transparent; border-radius: 999px; padding: 10px;
+            font-size: 0.95rem; font-weight: 600; cursor: pointer; color: #0f172a;
+        }
+        .tab[aria-selected=true] { background: #fff; }
+
+        .json-topo { display: flex; align-items: center; justify-content: space-between;
+                     gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+        .json-topo h3 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 1.15rem; }
+        .acoes { display: flex; gap: 8px; }
+        .btn-sec {
+            display: flex; align-items: center; gap: 8px; background: #fff; color: #0f172a;
+            border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 14px;
+            font-size: 0.9rem; font-weight: 600; cursor: pointer;
+        }
+        .btn-sec:hover { background: #f1f5f9; }
+
+        pre {
+            margin: 0; background: #111827; color: #4ade80; border-radius: 10px;
+            padding: 20px; max-height: 440px; overflow: auto;
+            font-family: ui-monospace, Consolas, monospace; font-size: 0.9rem; line-height: 1.5;
+        }
+        .nota { color: #64748b; font-size: 0.9rem; margin: 14px 0 0; }
+
+        .bloco { margin-bottom: 22px; }
+        .bloco h3 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em;
+                    color: #64748b; margin: 0 0 8px; }
+        dl { display: grid; grid-template-columns: 170px 1fr; gap: 8px 12px; margin: 0; }
+        dt { color: #64748b; }
+        dd { margin: 0; font-weight: 500; word-break: break-word; }
+        ul.produtos { margin: 0; padding-left: 20px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #e2e8f0; font-size: 0.95rem; }
+        th { color: #64748b; font-weight: 600; }
+        .tag {
+            display: inline-block; background: #dcfce7; color: #166534; border-radius: 999px;
+            padding: 4px 12px; font-size: 0.85rem; font-weight: 600; margin: 0 6px 6px 0;
+        }
+        .campo-chave { margin-bottom: 18px; }
+        input[type=password], input[type=text] {
+            width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #e2e8f0;
+            background: #fff; font-size: 0.95rem; font-family: ui-monospace, Consolas, monospace;
+        }
+        .dica { color: #64748b; font-size: 0.85rem; margin: 6px 0 0; }
+        .lembrar { display: flex; align-items: center; gap: 8px; margin-top: 8px;
+                   font-size: 0.85rem; color: #475569; font-weight: 400; }
+        .git-topo { display: flex; align-items: center; justify-content: space-between;
+                    gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+        .git-topo a { color: #1d4ed8; font-weight: 600; word-break: break-all; }
+        .commit-atual { margin: 0 0 14px; font-size: 0.95rem; color: #475569; }
+        .commit-atual code, .commit code {
+            background: #f1f5f9; border-radius: 6px; padding: 2px 6px;
+            font-family: ui-monospace, Consolas, monospace; font-size: 0.85rem; }
+        ul.commits { list-style: none; margin: 0; padding: 0; }
+        .commit { padding: 10px 0; border-bottom: 1px solid #e2e8f0; font-size: 0.95rem; }
+        .commit:last-child { border-bottom: 0; }
+        .commit a { color: #0f172a; text-decoration: none; font-weight: 500; }
+        .commit a:hover { text-decoration: underline; }
+        .commit small { display: block; color: #64748b; margin-top: 2px; }
+        [hidden] { display: none !important; }
+        @media (max-width: 560px) { dl { grid-template-columns: 1fr; } h1 { font-size: 1.7rem; } }
+    </style>
+</head>
+<body>
+<main>
+    <header>
+        <h1>Extração de Dados de Nota Fiscal</h1>
+        <p>Carregue um PDF de nota fiscal e extraia os dados automaticamente usando IA</p>
+    </header>
+
+    <section class="card">
+        <h2>
+            <svg viewBox="0 0 24 24"><path d="M12 15V3"/><path d="m7 8 5-5 5 5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg>
+            Upload do PDF
+        </h2>
+
+        <div class="campo-chave">
+            <label for="apiKey">Chave da API do Gemini</label>
+            <input type="password" id="apiKey" autocomplete="off" spellcheck="false"
+                   placeholder="Cole sua chave aqui">
+            <p class="dica" id="dicaChave">A chave é enviada só na hora da extração e não é gravada no servidor.</p>
+            <label class="lembrar">
+                <input type="checkbox" id="lembrarChave"> Lembrar nesta aba do navegador
+            </label>
+        </div>
+
+        <label for="notaFiscal">Selecione o arquivo PDF da nota fiscal</label>
+        <input type="file" id="notaFiscal" accept="application/pdf,.pdf">
+
+        <div class="chip" id="arquivo" hidden>
+            <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg>
+            <span class="nome" id="nomeArquivo"></span>
+            <span class="badge" id="tamanhoArquivo"></span>
+        </div>
+
+        <button class="btn-principal" id="btnExtrair" disabled>
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+            EXTRAIR DADOS
+        </button>
+        <div id="status" role="status"></div>
+    </section>
+
+    <section class="card" id="cardResultado" hidden>
+        <h2>Dados Extraídos</h2>
+
+        <div class="tabs" role="tablist">
+            <button class="tab" role="tab" id="tabFormatada" aria-selected="false">Visualização Formatada</button>
+            <button class="tab" role="tab" id="tabJson" aria-selected="true">JSON</button>
+        </div>
+
+        <div id="painelFormatado" hidden></div>
+
+        <div id="painelJson">
+            <div class="json-topo">
+                <h3>
+                    <svg viewBox="0 0 24 24"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></svg>
+                    Dados em JSON
+                </h3>
+                <div class="acoes">
+                    <button class="btn-sec" id="btnCopiar">
+                        <svg viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                        <span>Copiar JSON</span>
+                    </button>
+                    <button class="btn-sec" id="btnBaixar">
+                        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg>
+                        <span>Baixar JSON</span>
+                    </button>
+                </div>
+            </div>
+            <pre id="jsonSaida"></pre>
+            <p class="nota">Este JSON contém todos os dados extraídos da nota fiscal e pode ser usado para integração com outros sistemas.</p>
+        </div>
+    </section>
+
+    <section class="card" id="cardGit">
+        <h2>
+            <svg viewBox="0 0 24 24"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/></svg>
+            Versionamento (GitHub)
+        </h2>
+        <div class="git-topo">
+            <a id="gitLink" href="#" target="_blank" rel="noopener" hidden></a>
+            <button class="btn-sec" id="btnGit">
+                <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>
+                <span>Atualizar</span>
+            </button>
+        </div>
+        <p class="commit-atual" id="gitAtual" hidden></p>
+        <div id="gitStatus" class="dica"></div>
+        <ul class="commits" id="gitCommits"></ul>
+    </section>
+</main>
+
+<script>
+    const $ = (id) => document.getElementById(id);
+    const input = $("notaFiscal"), btnExtrair = $("btnExtrair"), status = $("status");
+    const cardResultado = $("cardResultado"), jsonSaida = $("jsonSaida");
+    const painelFormatado = $("painelFormatado"), painelJson = $("painelJson");
+    const tabFormatada = $("tabFormatada"), tabJson = $("tabJson");
+
+    const apiKey = $("apiKey"), lembrar = $("lembrarChave");
+    const CHAVE_SS = "gemini_key";
+
+    // recupera a chave se o usuário marcou "lembrar" (só nesta aba; some ao fechar)
+    try {
+        const salva = sessionStorage.getItem(CHAVE_SS);
+        if (salva) { apiKey.value = salva; lembrar.checked = true; }
+    } catch (e) {}
+
+    let dadosAtuais = null;   // objeto JSON devolvido pelo servidor
+    let nomeBase = "nota-fiscal";
+
+    function setStatus(msg, erro = false) {
+        status.textContent = msg;
+        status.classList.toggle("erro", erro);
+    }
+
+    function el(tag, classe, texto) {
+        const e = document.createElement(tag);
+        if (classe) e.className = classe;
+        if (texto !== undefined) e.textContent = texto;
+        return e;
+    }
+
+    // ---------- escolha do arquivo ----------
+    input.addEventListener("change", () => {
+        cardResultado.hidden = true;
+        setStatus("");
+        const f = input.files[0];
+        if (!f) { $("arquivo").hidden = true; btnExtrair.disabled = true; return; }
+        if (!f.name.toLowerCase().endsWith(".pdf")) {
+            $("arquivo").hidden = true; btnExtrair.disabled = true;
+            setStatus("O arquivo precisa ser um PDF.", true);
+            return;
+        }
+        nomeBase = f.name.replace(/\.pdf$/i, "");
+        $("nomeArquivo").textContent = f.name;
+        $("tamanhoArquivo").textContent = (f.size / 1024 / 1024).toFixed(2) + " MB";
+        $("arquivo").hidden = false;
+        btnExtrair.disabled = false;
+    });
+
+    // ---------- extração ----------
+    btnExtrair.addEventListener("click", async () => {
+        if (!input.files.length) return;
+        const formData = new FormData();
+        formData.append("nota_fiscal", input.files[0]);
+
+        btnExtrair.disabled = true;
+        cardResultado.hidden = true;
+        setStatus("Processando com o Agent... isso pode levar alguns segundos.");
+
+        try {
+            try {
+                if (lembrar.checked && apiKey.value) sessionStorage.setItem(CHAVE_SS, apiKey.value);
+                else sessionStorage.removeItem(CHAVE_SS);
+            } catch (e) {}
+
+            const resp = await fetch("/extrair", {
+                method: "POST",
+                headers: { "X-Gemini-Key": apiKey.value.trim() },
+                body: formData,
+            });
+            const data = await resp.json().catch(() => null);
+            if (!resp.ok || !data) {
+                setStatus((data && data.erro) || "Erro na extração.", true);
+                return;
+            }
+            dadosAtuais = data;
+            jsonSaida.textContent = JSON.stringify(data, null, 2);
+            renderFormatado(data);
+            mostrarAba("json");
+            cardResultado.hidden = false;
+            setStatus("Extração concluída.");
+        } catch (err) {
+            setStatus("Erro de comunicação com o servidor.", true);
+        } finally {
+            btnExtrair.disabled = false;
+        }
+    });
+
+    // ---------- abas ----------
+    function mostrarAba(aba) {
+        const json = aba === "json";
+        painelJson.hidden = !json;
+        painelFormatado.hidden = json;
+        tabJson.setAttribute("aria-selected", json);
+        tabFormatada.setAttribute("aria-selected", !json);
+    }
+    tabJson.addEventListener("click", () => mostrarAba("json"));
+    tabFormatada.addEventListener("click", () => mostrarAba("formatada"));
+
+    // ---------- visualização formatada ----------
+    const vazio = "—";
+    const moeda = (v) => (typeof v === "number")
+        ? v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : vazio;
+
+    function blocoDl(titulo, pares) {
+        const b = el("div", "bloco");
+        b.appendChild(el("h3", null, titulo));
+        const dl = el("dl");
+        for (const [k, v] of pares) {
+            dl.appendChild(el("dt", null, k));
+            dl.appendChild(el("dd", null, v ?? vazio));
+        }
+        b.appendChild(dl);
+        return b;
+    }
+
+    function renderFormatado(d) {
+        painelFormatado.replaceChildren();
+        const f = d.fornecedor || {}, fa = d.faturado || {};
+
+        painelFormatado.appendChild(blocoDl("Fornecedor", [
+            ["Razão Social", f.razao_social], ["Nome Fantasia", f.nome_fantasia], ["CNPJ", f.cnpj]]));
+        painelFormatado.appendChild(blocoDl("Faturado", [
+            ["Nome Completo", fa.nome_completo], ["CPF", fa.cpf]]));
+        painelFormatado.appendChild(blocoDl("Nota Fiscal", [
+            ["Número", d.numero_nota_fiscal], ["Data de Emissão", d.data_emissao],
+            ["Valor Total", moeda(d.valor_total)]]));
+
+        const prod = el("div", "bloco");
+        prod.appendChild(el("h3", null, "Descrição dos Produtos"));
+        const ul = el("ul", "produtos");
+        (d.descricao_produtos || []).forEach((p) => ul.appendChild(el("li", null, p)));
+        prod.appendChild(ul);
+        painelFormatado.appendChild(prod);
+
+        const par = el("div", "bloco");
+        par.appendChild(el("h3", null, "Parcelas (" + (d.quantidade_parcelas ?? (d.parcelas || []).length) + ")"));
+        const tb = el("table");
+        const cab = el("tr");
+        ["Nº", "Data de Vencimento", "Valor"].forEach((t) => cab.appendChild(el("th", null, t)));
+        tb.appendChild(cab);
+        (d.parcelas || []).forEach((p) => {
+            const tr = el("tr");
+            tr.appendChild(el("td", null, String(p.numero ?? vazio)));
+            tr.appendChild(el("td", null, p.data_vencimento ?? vazio));
+            tr.appendChild(el("td", null, moeda(p.valor)));
+            tb.appendChild(tr);
+        });
+        par.appendChild(tb);
+        painelFormatado.appendChild(par);
+
+        const desp = el("div", "bloco");
+        desp.appendChild(el("h3", null, "Classificação da Despesa"));
+        (d.tipo_despesa || []).forEach((t) => desp.appendChild(el("span", "tag", t)));
+        painelFormatado.appendChild(desp);
+    }
+
+    // ---------- versionamento GitHub ----------
+    function fmtData(iso) {
+        const d = new Date(iso);
+        return isNaN(d) ? iso : d.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+    }
+
+    async function carregarVersao() {
+        const gs = $("gitStatus"), lista = $("gitCommits");
+        gs.textContent = "Consultando o GitHub...";
+        lista.replaceChildren();
+        try {
+            const v = await (await fetch("/versao")).json();
+
+            // se o servidor já tem chave, o campo passa a ser opcional
+            if (v.chave_no_servidor) {
+                apiKey.placeholder = "Opcional (o servidor já tem uma chave configurada)";
+                $("dicaChave").textContent = "Deixe em branco para usar a chave do servidor, ou informe a sua.";
+            }
+
+            const link = $("gitLink");
+            if (v.url) { link.href = v.url; link.textContent = v.url; link.hidden = false; }
+            const atual = $("gitAtual");
+            if (v.commit_em_execucao) {
+                atual.replaceChildren("Commit em execução: ", el("code", null, v.commit_em_execucao));
+                atual.hidden = false;
+            }
+
+            (v.commits || []).forEach((c) => {
+                const li = el("li", "commit");
+                const a = el("a", null, c.mensagem);
+                a.href = c.url; a.target = "_blank"; a.rel = "noopener";
+                li.append(el("code", null, c.sha), " ", a,
+                          el("small", null, c.autor + " • " + fmtData(c.data)));
+                lista.appendChild(li);
+            });
+            gs.textContent = v.erro || "";
+        } catch (e) {
+            gs.textContent = "Erro ao consultar as informações de versionamento.";
+        }
+    }
+    $("btnGit").addEventListener("click", carregarVersao);
+    carregarVersao();
+
+    // ---------- copiar / baixar ----------
+    $("btnCopiar").addEventListener("click", async () => {
+        const texto = jsonSaida.textContent;
+        try {
+            await navigator.clipboard.writeText(texto);
+        } catch (e) {
+            const ta = document.createElement("textarea");
+            ta.value = texto; document.body.appendChild(ta); ta.select();
+            document.execCommand("copy"); ta.remove();
+        }
+        const rotulo = $("btnCopiar").querySelector("span");
+        rotulo.textContent = "Copiado!";
+        setTimeout(() => (rotulo.textContent = "Copiar JSON"), 1800);
+    });
+
+    $("btnBaixar").addEventListener("click", () => {
+        if (!dadosAtuais) return;
+        const blob = new Blob([JSON.stringify(dadosAtuais, null, 2)],
+                              { type: "application/json;charset=utf-8" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = nomeBase + ".json";
+        a.click();
+        URL.revokeObjectURL(a.href);
+    });
+</script>
+</body>
+</html>

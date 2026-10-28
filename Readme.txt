@@ -2,7 +2,7 @@ IZI CONTAS - PROJETO ADMINISTRATIVO-FINANCEIRO (N2)
 Extração de dados de nota fiscal (PDF) com IA (Gemini)
 
 - Link Hospedagem:
-  <<PREENCHER: link do Render, ex.: https://izicontas.onrender.com>>
+  https://izicontas.onrender.com/
 
 - GitHub:
   https://github.com/VilelaGuilherme/IziContas

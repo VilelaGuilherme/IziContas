@@ -14,7 +14,6 @@ Extração de dados de nota fiscal (PDF) com IA (Gemini)
   Não se aplica.
 
 - Key (LLM) - chave da API do Gemini:
-  <<PREENCHER: cole a chave só na cópia que for para o Classroom>>
   Como usar: colar no campo "Chave da API do Gemini", no topo da tela principal.
 
 - Código da última atualização no GitHub:

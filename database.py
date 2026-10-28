@@ -83,6 +83,16 @@ class Classificacao(Base):
     criado_em: Mapped[datetime] = mapped_column(DateTime, default=_agora)
 
 
+class Usuario(Base):
+    """Quem pode entrar no sistema. A senha fica só como hash (nunca em texto puro)."""
+    __tablename__ = "usuarios"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    login: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
+    senha_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    criado_em: Mapped[datetime] = mapped_column(DateTime, default=_agora)
+
+
 class MovimentoContas(Base):
     __tablename__ = "movimento_contas"
 

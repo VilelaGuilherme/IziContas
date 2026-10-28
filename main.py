@@ -15,6 +15,7 @@ from agents.agent1 import Agent1
 from agents.agent1.consulta_dados import analisar_nota
 from agents.agent1.lancamento_dados import RegraDeNegocio, lancar_nota
 from agents.agent1.manipulacao_dados import NotaFiscal
+from auth import bp as auth_bp
 from cadastros import bp as cadastros_bp
 from database import get_session, info_banco, mascarar
 
@@ -24,6 +25,15 @@ app = Flask(__name__)
 app.json.sort_keys = False  # mantém a ordem dos campos do JSON (Flask ordena por padrão)
 app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024  # 10 MB
 
+# --- login: o cookie de sessão é assinado com SECRET_KEY (definir na hospedagem)
+app.secret_key = os.environ.get("SECRET_KEY") or uuid.uuid4().hex
+if not os.environ.get("SECRET_KEY"):
+    print("AVISO: defina SECRET_KEY; sem ela todos saem do sistema a cada reinício.")
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["SESSION_COOKIE_SECURE"] = bool(os.environ.get("RENDER"))  # HTTPS no Render
+
+app.register_blueprint(auth_bp)
 app.register_blueprint(cadastros_bp)
 
 UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")

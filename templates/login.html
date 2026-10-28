@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Entrar - IZI Contas</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0; min-height: 100vh; display: grid; place-items: center;
+            font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+            background: #f8fafc; color: #0f172a; padding: 16px;
+        }
+        .card {
+            width: 100%; max-width: 380px; background: #fff;
+            border: 1px solid #e2e8f0; border-radius: 16px; padding: 28px;
+        }
+        h1 { font-size: 1.6rem; margin: 0 0 4px; text-align: center; }
+        p.sub { margin: 0 0 22px; color: #64748b; text-align: center; }
+        label { display: block; font-weight: 600; font-size: 0.95rem; margin: 14px 0 6px; }
+        input {
+            width: 100%; padding: 12px; border-radius: 10px;
+            border: 1px solid #e2e8f0; font-size: 1rem;
+        }
+        input:focus { outline: 2px solid #0f172a; border-color: transparent; }
+        button {
+            width: 100%; margin-top: 22px; padding: 14px; border: 0; border-radius: 10px;
+            background: #020617; color: #fff; font-size: 0.95rem; font-weight: 600;
+            letter-spacing: 0.03em; cursor: pointer;
+        }
+        .erro {
+            margin-top: 16px; padding: 10px 12px; border-radius: 10px;
+            background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; font-size: 0.92rem;
+        }
+    </style>
+</head>
+<body>
+    <form class="card" method="post" action="/login">
+        <h1>IZI Contas</h1>
+        <p class="sub">Entre para continuar</p>
+        <input type="hidden" name="next" value="{{ proximo }}">
+        <label for="login">Login</label>
+        <input id="login" name="login" autocomplete="username" autofocus required>
+        <label for="senha">Senha</label>
+        <input id="senha" name="senha" type="password" autocomplete="current-password" required>
+        {% if erro %}<div class="erro" role="alert">{{ erro }}</div>{% endif %}
+        <button type="submit">ENTRAR</button>
+    </form>
+</body>
+</html>

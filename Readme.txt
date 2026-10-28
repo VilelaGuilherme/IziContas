@@ -7,12 +7,6 @@ Extração de dados de nota fiscal (PDF) com IA (Gemini)
 - GitHub:
   https://github.com/VilelaGuilherme/IziContas
 
-- Login:
-  A aplicação não possui tela de login (acesso livre pelo link).
-
-- Senha:
-  Não se aplica.
-
 - Key (LLM) - chave da API do Gemini:
   Como usar: colar no campo "Chave da API do Gemini", no topo da tela principal.
 

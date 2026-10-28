@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Cadastros - IZI Contas</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+            background: #f8fafc;
+            color: #0f172a;
+        }
+        main { max-width: 1100px; margin: 0 auto; padding: 32px 16px 56px; }
+        header { text-align: center; margin-bottom: 22px; }
+        h1 { font-size: 2.2rem; margin: 0 0 8px; }
+        header p { margin: 0; color: #64748b; font-size: 1.05rem; }
+        h2 { font-size: 1.1rem; font-weight: 500; margin: 0 0 16px; }
+        svg { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor;
+              stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+        .nav { display: flex; justify-content: center; gap: 8px; margin-bottom: 20px; }
+        .nav a {
+            padding: 8px 18px; border-radius: 999px; text-decoration: none; font-weight: 600;
+            font-size: 0.9rem; color: #475569; background: #fff; border: 1px solid #e2e8f0;
+        }
+        .nav a:hover { background: #f1f5f9; }
+        .nav a.ativo { background: #020617; color: #fff; border-color: #020617; }
+
+        .tabs {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px;
+            background: #ececf1; border-radius: 999px; padding: 4px; margin-bottom: 4px;
+        }
+        .tab {
+            border: 0; background: transparent; border-radius: 999px; padding: 10px;
+            font-size: 0.95rem; font-weight: 600; cursor: pointer; color: #0f172a;
+        }
+        .tab[aria-selected=true] { background: #fff; }
+
+        .card {
+            background: #fff; border: 1px solid #e2e8f0; border-radius: 16px;
+            padding: 22px; margin-top: 20px;
+        }
+        .busca { display: flex; gap: 8px; flex-wrap: wrap; }
+        .busca input {
+            flex: 1 1 260px; padding: 12px; border-radius: 10px; border: 1px solid #e2e8f0;
+            font-size: 0.95rem; background: #fff;
+        }
+        button { font-family: inherit; }
+        .btn {
+            display: inline-flex; align-items: center; gap: 8px; padding: 11px 20px;
+            border: 0; border-radius: 10px; cursor: pointer; font-size: 0.95rem; font-weight: 600;
+            background: #020617; color: #fff;
+        }
+        .btn.azul { background: #2563eb; }
+        .btn.verde { background: #15803d; }
+        .btn.sec { background: #fff; color: #0f172a; border: 1px solid #e2e8f0; }
+        .btn:disabled { background: #84838d; cursor: not-allowed; }
+        .btn-peq { padding: 5px 12px; font-size: 0.82rem; border-radius: 8px; }
+
+        .lista-topo { display: flex; align-items: center; justify-content: space-between;
+                      gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+        .lista-topo h2 { margin: 0; }
+        .tabela-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { text-align: left; padding: 10px; border-bottom: 1px solid #e2e8f0;
+                 font-size: 0.92rem; vertical-align: top; }
+        th { color: #1d4ed8; font-weight: 700; cursor: pointer; white-space: nowrap; user-select: none; }
+        th:hover { text-decoration: underline; }
+        th.sem-ordem { color: #0f172a; cursor: default; }
+        th.sem-ordem:hover { text-decoration: none; }
+        tbody tr:hover { background: #f8fafc; }
+        tr.inativo td { color: #94a3b8; }
+        td.acoes { white-space: nowrap; }
+        td.acoes .btn + .btn { margin-left: 6px; }
+        .badge { display: inline-block; border-radius: 999px; padding: 2px 10px; font-size: 0.78rem; font-weight: 700; }
+        .badge.ATIVO { background: #dcfce7; color: #166534; }
+        .badge.INATIVO { background: #e2e8f0; color: #475569; }
+        .vazio { color: #64748b; text-align: center; padding: 22px 10px; }
+        .dica { color: #64748b; font-size: 0.9rem; margin: 10px 0 0; }
+        .caixa { border-radius: 10px; padding: 12px 14px; margin-bottom: 16px; font-size: 0.95rem; }
+        .caixa.aviso { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }
+        .caixa.erro { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+
+        dialog {
+            border: 0; border-radius: 16px; padding: 24px; width: min(520px, 92vw);
+            box-shadow: 0 20px 60px rgba(15, 23, 42, 0.3);
+        }
+        dialog::backdrop { background: rgba(15, 23, 42, 0.45); }
+        dialog h2 { margin-bottom: 18px; }
+        .campo { margin-bottom: 14px; }
+        .campo label { display: block; font-weight: 600; font-size: 0.9rem; margin-bottom: 6px; }
+        .campo input, .campo select {
+            width: 100%; padding: 11px; border-radius: 10px; border: 1px solid #cbd5e1;
+            font-size: 0.95rem; background: #fff;
+        }
+        .dlg-botoes { display: flex; gap: 8px; margin-top: 18px; }
+        #dlgErro { margin: 0 0 12px; }
+
+        #toast {
+            position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%);
+            background: #020617; color: #fff; padding: 12px 20px; border-radius: 10px;
+            font-size: 0.95rem; opacity: 0; pointer-events: none; transition: opacity 0.2s;
+        }
+        #toast.visivel { opacity: 1; }
+        [hidden] { display: none !important; }
+        @media (max-width: 560px) { h1 { font-size: 1.7rem; } .tab { font-size: 0.8rem; padding: 9px 4px; } }
+    </style>
+</head>
+<body>
+<main>
+    <nav class="nav">
+        <a href="/">Extração de NF</a>
+        <a class="ativo" href="/cadastros">Cadastros</a>
+    </nav>
+    <header>
+        <h1>Cadastros</h1>
+        <p>Consulte, edite, inative e reative os registros gravados no banco de dados</p>
+    </header>
+
+    <div class="caixa aviso" id="avisoBanco" hidden></div>
+
+    <div class="tabs" role="tablist">
+        <button class="tab" role="tab" data-ent="pessoas" aria-selected="true">Pessoas</button>
+        <button class="tab" role="tab" data-ent="classificacoes" aria-selected="false">Classificações</button>
+        <button class="tab" role="tab" data-ent="contas" aria-selected="false">Contas a pagar</button>
+    </div>
+
+    <section class="card">
+        <h2 id="tituloBusca">Buscar</h2>
+        <div class="busca">
+            <input type="text" id="busca" autocomplete="off">
+            <button class="btn azul" id="btnBuscar">
+                <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                Buscar
+            </button>
+            <button class="btn verde" id="btnTodos">
+                <svg viewBox="0 0 24 24"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg>
+                Todos
+            </button>
+        </div>
+        <p class="dica">Busca com mais de um termo: todos precisam aparecer no registro (ex.: <em>iguaçu 33656729</em>). A busca inclui registros inativos; "Todos" carrega só os ativos.</p>
+    </section>
+
+    <section class="card">
+        <div class="lista-topo">
+            <h2 id="tituloLista">Lista</h2>
+            <button class="btn azul" id="btnNovo">+ Novo</button>
+        </div>
+        <div class="tabela-wrap">
+            <table>
+                <thead><tr id="cabecalho"></tr></thead>
+                <tbody id="corpo"></tbody>
+            </table>
+        </div>
+        <p class="vazio" id="msgTabela"></p>
+    </section>
+</main>
+
+<dialog id="dlg">
+    <h2 id="dlgTitulo"></h2>
+    <div class="caixa erro" id="dlgErro" hidden></div>
+    <form id="form" novalidate>
+        <div id="dlgCampos"></div>
+        <div class="dlg-botoes">
+            <button type="submit" class="btn azul" id="btnSalvar">Salvar</button>
+            <button type="button" class="btn sec" id="btnCancelar">Cancelar</button>
+        </div>
+    </form>
+</dialog>
+
+<div id="toast" role="status"></div>
+
+<script>
+    const $ = (id) => document.getElementById(id);
+    const vazio = "—";
+    function el(tag, classe, texto) {
+        const e = document.createElement(tag);
+        if (classe) e.className = classe;
+        if (texto !== undefined) e.textContent = texto;
+        return e;
+    }
+    const moeda = (v) => (typeof v === "number")
+        ? v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : vazio;
+
+    // ---------------------------------------------------------------- configuração das telas
+    const ENTIDADES = {
+        pessoas: {
+            nome: "Pessoas", api: "/api/pessoas",
+            dica: "Buscar por nome, CNPJ/CPF, tipo ou ID...",
+            colunas: [
+                { k: "id", t: "ID" }, { k: "tipo", t: "Tipo" },
+                { k: "razao_social", t: "Razão Social / Nome" }, { k: "nome_fantasia", t: "Fantasia" },
+                { k: "documento", t: "CNPJ / CPF" }, { k: "status", t: "Status" },
+            ],
+            campos: [
+                { k: "tipo", t: "Tipo", opcoes: ["CLIENTE-FORNECEDOR", "FATURADO"] },
+                { k: "razao_social", t: "Razão Social / Nome completo" },
+                { k: "nome_fantasia", t: "Nome Fantasia" },
+                { k: "documento", t: "CNPJ / CPF" },
+            ],
+            novo: true, editar: true,
+        },
+        classificacoes: {
+            nome: "Classificações", api: "/api/classificacoes",
+            dica: "Buscar por descrição, tipo ou ID...",
+            colunas: [
+                { k: "id", t: "ID" }, { k: "tipo", t: "Tipo" },
+                { k: "descricao", t: "Descrição" }, { k: "status", t: "Status" },
+            ],
+            campos: [
+                { k: "tipo", t: "Tipo", opcoes: ["DESPESA", "RECEITA"] },
+                { k: "descricao", t: "Descrição" },
+            ],
+            novo: true, editar: true,
+        },
+        contas: {
+            nome: "Contas a pagar", api: "/api/contas",
+            dica: "Buscar por nº da nota, fornecedor, faturado ou ID...",
+            colunas: [
+                { k: "id", t: "ID" }, { k: "numero_documento", t: "Nº NF" },
+                { k: "fornecedor", t: "Fornecedor" }, { k: "faturado", t: "Faturado" },
+                { k: "data_emissao", t: "Emissão" },
+                { k: "valor_total", t: "Valor total", texto: (r) => moeda(r.valor_total) },
+                { k: "parcelas", t: "Parcelas", ordem: (r) => r.parcelas.length,
+                  linhas: (r) => r.parcelas.map((p) =>
+                      p.identificacao + " – " + (p.data_vencimento || "sem vencimento") + " – " + moeda(p.valor)) },
+                { k: "despesas", t: "Despesas", ordem: (r) => r.despesas.join(", "),
+                  linhas: (r) => r.despesas },
+                { k: "status", t: "Status" },
+            ],
+            campos: [], novo: false, editar: false,
+        },
+    };
+
+    let atual = "pessoas";
+    let linhas = [];
+    let consulta = null;           // última consulta feita (para recarregar depois de salvar)
+    let ordem = { k: null, dir: 1 };
+    let editando = null;           // registro em edição (null = novo)
+
+    // ---------------------------------------------------------------- tabela
+    const collator = new Intl.Collator("pt-BR", { numeric: true, sensitivity: "base" });
+
+    function valorOrdem(col, r) {
+        const v = col.ordem ? col.ordem(r) : r[col.k];
+        return v === null || v === undefined ? "" : v;
+    }
+
+    function ordenadas() {
+        if (!ordem.k) return linhas;
+        const col = ENTIDADES[atual].colunas.find((c) => c.k === ordem.k);
+        return [...linhas].sort((a, b) => {
+            const x = valorOrdem(col, a), y = valorOrdem(col, b);
+            const r = (typeof x === "number" && typeof y === "number") ? x - y : collator.compare(String(x), String(y));
+            return r * ordem.dir;
+        });
+    }
+
+    function renderTabela(mensagem) {
+        const ent = ENTIDADES[atual];
+        const cab = $("cabecalho");
+        cab.replaceChildren();
+        ent.colunas.forEach((col) => {
+            const th = el("th", null, col.t + (ordem.k === col.k ? (ordem.dir === 1 ? " ▲" : " ▼") : ""));
+            th.addEventListener("click", () => {
+                ordem = { k: col.k, dir: ordem.k === col.k ? -ordem.dir : 1 };
+                renderTabela();
+            });
+            cab.appendChild(th);
+        });
+        cab.appendChild(el("th", "sem-ordem", "Ações"));
+
+        const corpo = $("corpo");
+        corpo.replaceChildren();
+        const dados = ordenadas();
+        dados.forEach((r) => corpo.appendChild(linha(ent, r)));
+        $("msgTabela").hidden = dados.length > 0;
+        $("msgTabela").textContent = dados.length ? "" : (mensagem || "Nenhum registro encontrado.");
+    }
+
+    function linha(ent, r) {
+        const tr = el("tr", r.status === "INATIVO" ? "inativo" : "");
+        ent.colunas.forEach((col) => {
+            const td = el("td");
+            if (col.k === "status") {
+                td.appendChild(el("span", "badge " + r.status, r.status));
+            } else if (col.linhas) {
+                const itens = col.linhas(r);
+                if (!itens.length) td.textContent = vazio;
+                itens.forEach((t) => td.appendChild(el("div", null, t)));
+            } else {
+                const v = col.texto ? col.texto(r) : r[col.k];
+                td.textContent = v === null || v === undefined || v === "" ? vazio : String(v);
+            }
+            tr.appendChild(td);
+        });
+
+        // duas ações: Editar / Excluir (lógico). Registro inativo só pode ser reativado.
+        const acoes = el("td", "acoes");
+        if (r.status === "ATIVO") {
+            if (ent.editar) {
+                const bEditar = el("button", "btn sec btn-peq", "Editar");
+                bEditar.addEventListener("click", () => abrirForm(r));
+                acoes.appendChild(bEditar);
+            }
+            const bExcluir = el("button", "btn sec btn-peq", "Excluir");
+            bExcluir.addEventListener("click", () => mudarStatus(r, "DELETE"));
+            acoes.appendChild(bExcluir);
+        } else {
+            const bReativar = el("button", "btn verde btn-peq", "Reativar");
+            bReativar.addEventListener("click", () => mudarStatus(r, "REATIVAR"));
+            acoes.appendChild(bReativar);
+        }
+        tr.appendChild(acoes);
+        return tr;
+    }
+
+    // ---------------------------------------------------------------- chamadas à API
+    async function api(url, opcoes) {
+        const resp = await fetch(url, opcoes);
+        const dados = await resp.json().catch(() => null);
+        if (!resp.ok) throw new Error((dados && dados.erro) || "Erro na requisição (" + resp.status + ").");
+        return dados;
+    }
+
+    async function carregar(parametros) {
+        consulta = parametros;
+        $("msgTabela").hidden = false;
+        $("msgTabela").textContent = "Carregando...";
+        try {
+            linhas = await api(ENTIDADES[atual].api + "?" + parametros);
+            renderTabela();
+        } catch (e) {
+            linhas = [];
+            renderTabela(e.message);
+        }
+    }
+
+    function buscar() {
+        const termo = $("busca").value.trim();
+        if (!termo) {
+            linhas = []; consulta = null;
+            renderTabela("Digite um ou mais termos para buscar, ou use TODOS.");
+            return;
+        }
+        carregar("q=" + encodeURIComponent(termo));
+    }
+
+    async function mudarStatus(r, acao) {
+        const ent = ENTIDADES[atual];
+        if (acao === "DELETE" && !confirm("Excluir este registro?\n\nEle não será apagado: apenas ficará INATIVO e poderá ser reativado.")) return;
+        try {
+            await api(ent.api + "/" + r.id + (acao === "REATIVAR" ? "/reativar" : ""),
+                      { method: acao === "REATIVAR" ? "POST" : "DELETE" });
+            toast(acao === "REATIVAR" ? "Registro reativado." : "Registro inativado.");
+            carregar(consulta || "todos=1");
+        } catch (e) { toast(e.message); }
+    }
+
+    // ---------------------------------------------------------------- formulário (novo / editar)
+    const dlg = $("dlg");
+
+    function abrirForm(registro) {
+        const ent = ENTIDADES[atual];
+        editando = registro || null;
+        $("dlgTitulo").textContent = (registro ? "Editar" : "Novo") + " – " + ent.nome;
+        $("dlgErro").hidden = true;
+        const campos = $("dlgCampos");
+        campos.replaceChildren();
+        ent.campos.forEach((c) => {
+            const bloco = el("div", "campo");
+            const rotulo = el("label", null, c.t);
+            rotulo.htmlFor = "campo_" + c.k;
+            let entrada;
+            if (c.opcoes) {
+                entrada = el("select");
+                c.opcoes.forEach((o) => entrada.appendChild(new Option(o, o)));
+            } else {
+                entrada = el("input");
+                entrada.type = "text";
+                entrada.autocomplete = "off";
+            }
+            entrada.id = "campo_" + c.k;
+            entrada.name = c.k;
+            entrada.value = registro && registro[c.k] != null ? registro[c.k] : (c.opcoes ? c.opcoes[0] : "");
+            bloco.append(rotulo, entrada);
+            campos.appendChild(bloco);
+        });
+        // o STATUS não aparece: no cadastro novo é sempre ATIVO e na edição não muda
+        dlg.showModal();
+        const primeiro = campos.querySelector("input, select");
+        if (primeiro) primeiro.focus();
+    }
+
+    $("form").addEventListener("submit", async (ev) => {
+        ev.preventDefault();
+        const ent = ENTIDADES[atual];
+        const corpo = {};
+        ent.campos.forEach((c) => { corpo[c.k] = $("campo_" + c.k).value.trim(); });
+        $("btnSalvar").disabled = true;
+        try {
+            await api(ent.api + (editando ? "/" + editando.id : ""), {
+                method: editando ? "PUT" : "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(corpo),
+            });
+            dlg.close();
+            toast(editando ? "Registro atualizado." : "Registro criado.");
+            carregar(consulta || "todos=1");
+        } catch (e) {
+            $("dlgErro").textContent = e.message;
+            $("dlgErro").hidden = false;
+        } finally {
+            $("btnSalvar").disabled = false;
+        }
+    });
+    $("btnCancelar").addEventListener("click", () => dlg.close());
+
+    // ---------------------------------------------------------------- abas, busca e avisos
+    function trocarAba(chave) {
+        atual = chave; linhas = []; consulta = null; ordem = { k: null, dir: 1 };
+        const ent = ENTIDADES[chave];
+        document.querySelectorAll(".tab").forEach((t) =>
+            t.setAttribute("aria-selected", t.dataset.ent === chave));
+        $("tituloBusca").textContent = "Buscar " + ent.nome;
+        $("tituloLista").textContent = "Lista de " + ent.nome;
+        $("busca").placeholder = ent.dica;
+        $("busca").value = "";
+        $("btnNovo").hidden = !ent.novo;
+        // a tabela começa vazia: os dados só aparecem com BUSCAR ou TODOS
+        renderTabela("Nenhum registro carregado. Use Buscar ou Todos.");
+    }
+
+    function toast(texto) {
+        const t = $("toast");
+        t.textContent = texto;
+        t.classList.add("visivel");
+        clearTimeout(toast.timer);
+        toast.timer = setTimeout(() => t.classList.remove("visivel"), 3000);
+    }
+
+    document.querySelectorAll(".tab").forEach((t) =>
+        t.addEventListener("click", () => trocarAba(t.dataset.ent)));
+    $("btnBuscar").addEventListener("click", buscar);
+    $("btnTodos").addEventListener("click", () => carregar("todos=1"));
+    $("busca").addEventListener("keydown", (e) => { if (e.key === "Enter") buscar(); });
+    $("btnNovo").addEventListener("click", () => abrirForm(null));
+
+    fetch("/api/info").then((r) => r.json()).then((i) => {
+        if (i && i.temporario) {
+            $("avisoBanco").textContent = "Atenção: o banco está em SQLite e, no Render, os dados são apagados " +
+                "quando o serviço reinicia. Configure a variável DATABASE_URL com um PostgreSQL para guardar de forma permanente.";
+            $("avisoBanco").hidden = false;
+        }
+    }).catch(() => {});
+
+    trocarAba("pessoas");
+</script>
+</body>
+</html>

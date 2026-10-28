@@ -144,3 +144,44 @@ O modelo principal é `gemini-3.8-flash` (pode ser trocado pela variável `GEMIN
 Se ele responder 503 (alta demanda), o código tenta de novo e depois passa
 automaticamente para `gemini-3.5-flash-lite`. Erros de chave ou cota não trocam de
 modelo. A lista de reserva fica em `MODELOS_RESERVA`, em `agents/agent1/manipulacao_dados.py`.
+
+## Código da última atualização (GitHub)
+
+O código do último commit aparece no topo da tela principal ("Última atualização no
+GitHub"), com um selo que indica se a versão que está no ar é a mais recente. No Render o
+commit em execução vem da variável `RENDER_GIT_COMMIT` (automática), e `GITHUB_REPO` é
+opcional (o Render também informa o repositório em `RENDER_GIT_REPO_SLUG`). Se a API do
+GitHub estiver indisponível, a tela mostra ao menos o commit que está rodando.
+
+## Banco de dados (2ª etapa)
+
+Depois de extrair a nota, a tela consulta o banco e mostra se **FORNECEDOR**, **FATURADO** e
+**DESPESA** existem (`EXISTE – ID: n` ou `NÃO EXISTE`). O botão **Lançar registro** cria o que
+faltar e grava o movimento A PAGAR com a(s) parcela(s), tudo em uma transação. Em
+**Cadastros** dá para buscar, editar, inativar e reativar os registros.
+
+Tabelas (`database.py`): `pessoas` (tipo CLIENTE-FORNECEDOR ou FATURADO), `classificacao`
+(tipo DESPESA ou RECEITA), `movimento_contas` (tipo APAGAR), `parcela_contas` (identificação
+ÚNICA, 1/3, 2/3...) e `movimento_classificacao` (um movimento pode ter várias despesas).
+As tabelas são criadas sozinhas no primeiro acesso.
+
+Regras de negócio implementadas:
+- cadastros **não são excluídos**: "Excluir" só muda o status para INATIVO, e é possível REATIVAR;
+- no cadastro novo o status é sempre ATIVO; na edição o status não muda;
+- cadastro INATIVO não pode ser usado em um lançamento até ser reativado;
+- uma nota pode ter uma ou mais despesas e uma ou mais parcelas;
+- nota já lançada para o mesmo fornecedor gera um aviso (não bloqueia);
+- TODOS carrega só os ATIVOS; a BUSCA aceita vários termos e inclui os INATIVOS.
+
+### Qual banco usar
+- Sem `DATABASE_URL`: usa SQLite local (`izi_contas.db`). Bom para testar no computador.
+  No Render gratuito o disco é apagado a cada reinício, então os dados se perdem.
+- Com `DATABASE_URL`: usa o PostgreSQL informado (o Render fornece a URL).
+
+### PostgreSQL no Render
+1. Dashboard > **New > PostgreSQL**, plano **Free**, mesma região do web service.
+2. Quando estiver pronto, copie a **Internal Database URL**.
+3. No web service > **Environment** > crie `DATABASE_URL` com essa URL e salve.
+4. Faça o deploy. As tabelas são criadas no primeiro acesso.
+
+Rodando no computador: `pip install -r requirements.txt` e `python main.py`.

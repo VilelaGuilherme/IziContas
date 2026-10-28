@@ -103,6 +103,44 @@
             display: inline-block; background: #dcfce7; color: #166534; border-radius: 999px;
             padding: 4px 12px; font-size: 0.85rem; font-weight: 600; margin: 0 6px 6px 0;
         }
+        .versao-topo {
+            display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap;
+            justify-content: center; margin-top: 14px; padding: 6px 14px;
+            background: #fff; border: 1px solid #e2e8f0; border-radius: 999px;
+            font-size: 0.85rem; color: #475569;
+        }
+        .versao-topo svg { width: 15px; height: 15px; }
+        .versao-topo code {
+            background: #f1f5f9; border-radius: 6px; padding: 2px 7px; color: #0f172a;
+            font-family: ui-monospace, Consolas, monospace; font-size: 0.85rem; font-weight: 600;
+        }
+        .versao-topo a { text-decoration: none; }
+        .selo { font-weight: 600; }
+        .selo.ok { color: #166534; }
+        .selo.aviso { color: #b45309; }
+        .nav { display: flex; justify-content: center; gap: 8px; margin-bottom: 20px; }
+        .nav a {
+            padding: 8px 18px; border-radius: 999px; text-decoration: none; font-weight: 600;
+            font-size: 0.9rem; color: #475569; background: #fff; border: 1px solid #e2e8f0;
+        }
+        .nav a:hover { background: #f1f5f9; }
+        .nav a.ativo { background: #020617; color: #fff; border-color: #020617; }
+
+        .analise-bloco { margin-bottom: 22px; }
+        .analise-bloco h3 { margin: 0 0 6px; font-size: 1rem; letter-spacing: 0.03em; }
+        .analise-bloco .nome { font-weight: 500; }
+        .analise-bloco .doc { color: #475569; }
+        .res { font-weight: 700; margin-top: 4px; }
+        .res.nao { color: #dc2626; }
+        .res.sim { color: #3b82f6; }
+        .res.inativo { color: #b45309; }
+        .btn-peq { padding: 3px 10px; font-size: 0.8rem; margin-left: 6px; }
+        .caixa { border-radius: 10px; padding: 12px 14px; margin-top: 14px; font-size: 0.95rem; }
+        .caixa ul { margin: 6px 0 0; padding-left: 20px; }
+        .caixa.sucesso { background: #dcfce7; color: #14532d; border: 1px solid #bbf7d0; }
+        .caixa.aviso { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }
+        .caixa.erro { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+        .caixa a { color: inherit; font-weight: 600; }
         .campo-chave { margin-bottom: 18px; }
         input[type=password], input[type=text] {
             width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #e2e8f0;
@@ -130,9 +168,19 @@
 </head>
 <body>
 <main>
+    <nav class="nav">
+        <a class="ativo" href="/">Extração de NF</a>
+        <a href="/cadastros">Cadastros</a>
+    </nav>
     <header>
         <h1>Extração de Dados de Nota Fiscal</h1>
         <p>Carregue um PDF de nota fiscal e extraia os dados automaticamente usando IA</p>
+        <div class="versao-topo" id="versaoTopo">
+            <svg viewBox="0 0 24 24"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/></svg>
+            <span id="versaoRotulo">Última atualização no GitHub:</span>
+            <a id="versaoLink" href="#" target="_blank" rel="noopener"><code id="versaoSha">consultando...</code></a>
+            <span id="versaoSelo" class="selo"></span>
+        </div>
     </header>
 
     <section class="card">
@@ -199,6 +247,19 @@
         </div>
     </section>
 
+    <section class="card" id="cardAnalise" hidden>
+        <h2>
+            <svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>
+            Análise dos Dados (Banco de Dados)
+        </h2>
+        <div id="analiseCorpo"></div>
+        <button class="btn-principal" id="btnLancar" disabled>
+            <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg>
+            <span id="lancarTexto">LANÇAR REGISTRO</span>
+        </button>
+        <div id="lancarMsg"></div>
+    </section>
+
     <section class="card" id="cardGit">
         <h2>
             <svg viewBox="0 0 24 24"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/></svg>
@@ -248,8 +309,145 @@
         return e;
     }
 
+    // ---------- 2ª etapa: análise no banco e lançamento ----------
+    const cardAnalise = $("cardAnalise"), analiseCorpo = $("analiseCorpo");
+    const btnLancar = $("btnLancar"), lancarMsg = $("lancarMsg");
+    let lancado = false, analiseSeq = 0;
+
+    function resetAnalise() {
+        analiseSeq++; lancado = false;
+        cardAnalise.hidden = true;
+        analiseCorpo.replaceChildren(); lancarMsg.replaceChildren();
+        btnLancar.disabled = true;
+        $("lancarTexto").textContent = "LANÇAR REGISTRO";
+    }
+
+    async function postJson(url, corpo) {
+        const resp = await fetch(url, {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(corpo),
+        });
+        return { ok: resp.ok, data: await resp.json().catch(() => null) };
+    }
+
+    // "NÃO EXISTE" (vermelho) / "EXISTE – ID: 19" (azul), como no enunciado
+    function resultado(item, rota) {
+        if (!item.existe) return el("div", "res nao", "NÃO EXISTE");
+        if (item.status === "ATIVO") return el("div", "res sim", "EXISTE – ID: " + item.id);
+        const linha = el("div", "res inativo", "EXISTE – ID: " + item.id + " (" + item.status + ")");
+        const bt = el("button", "btn-sec btn-peq", "Reativar");
+        bt.addEventListener("click", async () => {
+            bt.disabled = true;
+            await fetch("/api/" + rota + "/" + item.id + "/reativar", { method: "POST" });
+            analisar();
+        });
+        linha.append(bt);
+        return linha;
+    }
+
+    function blocoAnalise(titulo, nome, doc, item, rota) {
+        const b = el("div", "analise-bloco");
+        b.appendChild(el("h3", null, titulo));
+        b.appendChild(el("div", "nome", nome || vazio));
+        if (doc) b.appendChild(el("div", "doc", doc));
+        b.appendChild(resultado(item, rota));
+        return b;
+    }
+
+    function caixaLista(classe, titulo, itens) {
+        const c = el("div", "caixa " + classe);
+        c.appendChild(el("strong", null, titulo));
+        const ul = el("ul");
+        itens.forEach((t) => ul.appendChild(el("li", null, t)));
+        c.appendChild(ul);
+        return c;
+    }
+
+    function renderAnalise(a) {
+        analiseCorpo.replaceChildren();
+        const f = a.fornecedor, fa = a.faturado;
+        analiseCorpo.appendChild(blocoAnalise("FORNECEDOR:", f.nome,
+            f.documento ? f.rotulo_documento + ": " + f.documento : null, f, "pessoas"));
+        analiseCorpo.appendChild(blocoAnalise("FATURADO", fa.nome,
+            fa.documento ? fa.rotulo_documento + ": " + fa.documento : null, fa, "pessoas"));
+
+        const d = el("div", "analise-bloco");
+        d.appendChild(el("h3", null, "DESPESA"));
+        a.despesas.forEach((x) => {
+            d.appendChild(el("div", "nome", x.descricao));
+            d.appendChild(resultado(x, "classificacoes"));
+        });
+        if (!a.despesas.length) d.appendChild(el("div", "nome", vazio));
+        analiseCorpo.appendChild(d);
+
+        if (a.banco && a.banco.temporario) {
+            analiseCorpo.appendChild(el("div", "caixa aviso",
+                "Atenção: o banco está em SQLite e, no Render, os dados são apagados quando o serviço reinicia. " +
+                "Configure a variável DATABASE_URL com um PostgreSQL para guardar de forma permanente."));
+        }
+        if (a.bloqueios.length) analiseCorpo.appendChild(caixaLista("erro", "Não é possível lançar:", a.bloqueios));
+        if (!lancado && a.avisos.length) analiseCorpo.appendChild(caixaLista("aviso", "Atenção:", a.avisos));
+
+        btnLancar.disabled = lancado || !a.pode_lancar;
+    }
+
+    async function analisar() {
+        const minha = ++analiseSeq;
+        cardAnalise.hidden = false;
+        btnLancar.disabled = true;
+        analiseCorpo.replaceChildren(el("p", "dica", "Consultando o banco de dados..."));
+        let r = null;
+        try { r = await postJson("/analisar", dadosAtuais); } catch (e) {}
+        if (minha !== analiseSeq) return;  // chegou resposta de uma nota antiga
+        if (!r || !r.ok) {
+            analiseCorpo.replaceChildren(el("div", "caixa erro",
+                (r && r.data && r.data.erro) || "Erro ao consultar o banco de dados."));
+            return;
+        }
+        renderAnalise(r.data);
+    }
+
+    function mostrarSucesso(d) {
+        const c = el("div", "caixa sucesso");
+        c.appendChild(el("strong", null, "✔ " + d.mensagem));
+        const ul = el("ul");
+        ul.appendChild(el("li", null, "Movimento A PAGAR – ID: " + d.movimento_id + " • Valor total: " + moeda(d.valor_total)));
+        d.parcelas.forEach((p) => ul.appendChild(el("li", null,
+            "Parcela " + p.identificacao + " – vencimento: " + (p.data_vencimento || vazio) + " – " + moeda(p.valor))));
+        if (d.criados.length) {
+            d.criados.forEach((x) => ul.appendChild(el("li", null,
+                x.entidade + " criado(a) – ID: " + x.id + " (" + x.nome + ")")));
+        } else {
+            ul.appendChild(el("li", null, "Nenhum cadastro novo foi necessário: fornecedor, faturado e despesa já existiam."));
+        }
+        c.appendChild(ul);
+        const ver = el("a", null, "Ver em Cadastros");
+        ver.href = "/cadastros";
+        c.appendChild(ver);
+        lancarMsg.replaceChildren(c);
+    }
+
+    btnLancar.addEventListener("click", async () => {
+        if (!dadosAtuais || lancado) return;
+        btnLancar.disabled = true;
+        lancarMsg.replaceChildren(el("p", "dica", "Lançando..."));
+        let r = null;
+        try { r = await postJson("/lancar", dadosAtuais); } catch (e) {}
+        if (!r || !r.ok) {
+            lancarMsg.replaceChildren(el("div", "caixa erro",
+                (r && r.data && r.data.erro) || "Erro de comunicação ao lançar o registro."));
+            btnLancar.disabled = false;
+            return;
+        }
+        lancado = true;
+        $("lancarTexto").textContent = "REGISTRO LANÇADO";
+        mostrarSucesso(r.data);
+        analisar();  // atualiza a tela: agora tudo aparece como EXISTE – ID
+    });
+
     // ---------- escolha do arquivo ----------
     input.addEventListener("change", () => {
+        resetAnalise();
         cardResultado.hidden = true;
         setStatus("");
         const f = input.files[0];
@@ -274,6 +472,7 @@
 
         btnExtrair.disabled = true;
         cardResultado.hidden = true;
+        resetAnalise();
         setStatus("Processando com o Agent... isso pode levar alguns segundos.");
 
         try {
@@ -298,6 +497,7 @@
             mostrarAba("json");
             cardResultado.hidden = false;
             setStatus("Extração concluída.");
+            analisar();  // 2ª etapa: consulta o banco logo após a extração
         } catch (err) {
             setStatus("Erro de comunicação com o servidor.", true);
         } finally {
@@ -380,6 +580,36 @@
         return isNaN(d) ? iso : d.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
     }
 
+    // selo no topo da tela principal: código da última atualização do GitHub
+    function preencherSeloTopo(v) {
+        const sha = $("versaoSha"), selo = $("versaoSelo"), a = $("versaoLink");
+        selo.className = "selo";
+        if (v.ultimo_commit_github) {
+            sha.textContent = v.ultimo_commit_github;
+            sha.title = (v.commits[0] && v.commits[0].sha_completo) || "";
+            if (v.commits[0]) a.href = v.commits[0].url;
+            if (v.atualizado === true) {
+                selo.textContent = "✔ versão no ar é a mais recente";
+                selo.classList.add("ok");
+            } else if (v.atualizado === false) {
+                selo.textContent = "⚠ no ar: " + v.commit_em_execucao + " (aguardando deploy)";
+                selo.classList.add("aviso");
+            } else {
+                selo.textContent = "";
+            }
+        } else if (v.commit_em_execucao) {
+            // GitHub indisponível: mostra pelo menos o commit que está rodando
+            $("versaoRotulo").textContent = "Versão no ar (commit):";
+            sha.textContent = v.commit_em_execucao;
+            sha.title = v.commit_completo || "";
+            if (v.url) a.href = v.url + "/commit/" + (v.commit_completo || v.commit_em_execucao);
+            selo.textContent = "";
+        } else {
+            sha.textContent = "indisponível";
+            selo.textContent = v.erro || "";
+        }
+    }
+
     async function carregarVersao() {
         const gs = $("gitStatus"), lista = $("gitCommits");
         gs.textContent = "Consultando o GitHub...";
@@ -392,6 +622,8 @@
                 apiKey.placeholder = "Opcional (o servidor já tem uma chave configurada)";
                 $("dicaChave").textContent = "Deixe em branco para usar a chave do servidor, ou informe a sua.";
             }
+
+            preencherSeloTopo(v);
 
             const link = $("gitLink");
             if (v.url) { link.href = v.url; link.textContent = v.url; link.hidden = false; }
@@ -412,6 +644,7 @@
             gs.textContent = v.erro || "";
         } catch (e) {
             gs.textContent = "Erro ao consultar as informações de versionamento.";
+            $("versaoSha").textContent = "indisponível";
         }
     }
     $("btnGit").addEventListener("click", carregarVersao);
